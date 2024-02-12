@@ -1,0 +1,31 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+
+<h1 class="display-4">Welcome</h1>
+<p></p>
+<p> This prototype illustrates a way of using Webauthn in an authentication scenario where the identity is tied to a crypto (Algorand) account.
+<p> The particular scenario demonstrated is when a user is onboarded to a new service, such as a video game, while creating an Algorand account for them at the same time.</p>
+<p> During registration the user creates a passkey that: </p>
+<ul>
+    <li>Is associated with a separate signing passkey</li>
+    <li>The signing passkey can be used to sign transactions using the more widely supported schemes, as well as EdDSA</li>
+    <li>The transaction can be sent via their Algorand account, which verifies the signature and processes it for them. </li>
+</ul>
+
+<p> The scenario is only illustrative. There are many possible use cases and concerns, such as handling MBR, account recovery, or allowing the user to take over full control.  </p>
+<p> The expectation is that in general, for tasks like handling MBR investment made by the server, then that would require contract changes, whereas for handling client account control or account recovery, then account changes such as multisigs and rekeying would be used.</p>
+
+<p> To experience the demo, please follow these steps:</p>
+<ul>
+    <li>Please use the Register tab to create a new account at the "service." For illustration, you will not be automatically signed in.</li>
+    <li>Once registered, use the Login tab to experience authentication.</li>
+    <li>Once signed in, use the Transfer Asset tab to send another "player" a "magic amulet". Good luck! </li>
+</ul>
+<p> If you are running this locally, please update the appsettings.json with your Algod node connection details. </p>
+
+
+
