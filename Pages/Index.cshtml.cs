@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace AlgorandWebauthnVariant.Pages
+namespace AlgorandAuth.Pages
 {
     public class IndexModel : PageModel
     {

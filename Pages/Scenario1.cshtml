@@ -1,0 +1,214 @@
+﻿@page
+@model Scenario1Model
+@{
+    ViewData["Title"] = "Register new user.";
+}
+
+<div class="container">
+    <h1 class="title is-1">Scenario: User registration creates controlled Algorand account</h1>
+    <div class="content">
+        <p>This scenario is akin to a game server accepting new users, that would also like to use Algorand to store user &lt;--&gt; game item relationships, and for marketplace services such as swapping game items or in game purchases.</p>
+        <p>One concern is the minimum balance requirement (MBR) for user accounts. Creating a new account involves pre-funding. This investment can be lost if fake accounts are used to register new players and when the Algorand accounts are fully under the control of the new player.</p>
+        <p>To mitigate this, the server should place controls on what can be done with the account, in addition to basic registration checks for IP address, throttling and so on.</p>
+        <p>Controlling an account can be done in a few ways, and this demo shows how to represent an account by using a Smart Contract.</p>
+        <p></p>
+        <p>
+            The server can easily add items or funds to the Smart Contract account, while transferring out would be a relatively infrequent operation. For example, before starting a "level",
+            (which could be any kind of analogous operation, such as before starting to watch a video with a video access token, etc) the player would first load up their character with
+            items to use by signing an instruction to the smart contract, such as "add 1000 gold coins to my character".
+        </p>
+        <p>
+            From the perspective of server costing, the transaction fees for these infrequent operations are to some extent offset by what is saved developing, using and securing cloud hosting in the more traditional approach.
+            Further, marketplace operations such as swaps and re-sales could be programmed to incur game server royalty charges.
+        </p>
+    </div>
+
+
+    <h3 class="title is-3">Register user</h3>
+    <p>Registering a new user will create two passkeys. One for <b>authentication to the server</b> and one for <b>signing transactions</b>.</p>
+    <ul>
+        <li>The authentication passkey is associated with a separate signing passkey</li>
+        <li>The signing passkey can be used to sign transactions using the more widely supported schemes, as well as EdDSA</li>
+        <li>The transactions can be sent via their Algorand account, which verifies the signature and processes it for them. </li>
+    </ul>
+    <p>Dissociating the accounts is a healthy practice. Public blockchain transactions will be harder to correlate with server identity, and the signing key used for authentication will not be re-used by malicious actors.</p>
+    <p>Along with the passkeys, a new account will be created and deployed on the Algorand network. This account is governed by a smart contract.</p>
+    <p>The source code for the smart contract is available, in the github repo. It is implemented for demo purposes to allow only a funds payment out.</p>
+    <form id="registerForm">
+        <input type="hidden" id="RequestVerificationToken" name="__RequestVerificationToken" />
+        @Html.AntiForgeryToken()
+        <div class="input-group mb-3">
+            <input asp-for="DisplayName" class="form-control" placeholder="Recipient's username" aria-label="Recipient's username">
+
+        </div>
+
+        <button type="submit" class="button btn-primary">Register new user</button>
+
+    </form>
+
+
+
+</div>
+
+<script>
+    document.getElementById('registerForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        let formData = new FormData(this);
+
+        fetch('Scenario1?handler=MakeCredentialOptions', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+            }
+        })
+            .then(response => response.json())
+            .then(async (makeCredentialOptions) => {
+                debugger;
+
+                if (makeCredentialOptions.status !== "ok") {
+                    console.log("Error creating credential options");
+                    console.log(makeCredentialOptions.errorMessage);
+                    showErrorAlert(makeCredentialOptions.errorMessage);
+                    return;
+                }
+
+
+
+                // Turn the challenge back into the accepted format of padded base64
+                makeCredentialOptions.challenge = coerceToArrayBuffer(makeCredentialOptions.challenge);
+                // Turn ID into a UInt8Array Buffer for some reason
+                makeCredentialOptions.user.id = coerceToArrayBuffer(makeCredentialOptions.user.id);
+
+                makeCredentialOptions.excludeCredentials = makeCredentialOptions.excludeCredentials.map((c) => {
+                    c.id = coerceToArrayBuffer(c.id);
+                    return c;
+                });
+
+                if (makeCredentialOptions.authenticatorSelection.authenticatorAttachment === null) makeCredentialOptions.authenticatorSelection.authenticatorAttachment = undefined;
+
+                console.log("Credential Options Formatted", makeCredentialOptions);
+
+            
+
+                let newCredentialAuth;
+                let newCredentialAlgorand;
+                try {
+                    Swal.fire({
+                        title: 'Registering authentication passkey...',
+                        text: 'Please follow the onscreen instructions.',
+                        imageUrl: "/images/securitykey.min.svg",
+                        
+                        showCancelButton: true,
+                        showConfirmButton: false,
+                        focusConfirm: false,
+                        focusCancel: false,
+                        width: '850px'
+                        
+                    });
+                    newCredentialAuth = await navigator.credentials.create({
+                        publicKey: makeCredentialOptions
+                    });
+                    Swal.close();
+                    Swal.fire({
+                        title: '..and your Algorand Account passkey.',
+                        text: 'Please follow the onscreen instructions.',
+                        imageUrl: "/images/securitykey.min.svg",
+                        background: 'lightblue',
+                        showCancelButton: true,
+                        showConfirmButton: false,
+                        focusConfirm: false,
+                        focusCancel: false
+                    });
+                    newCredentialAlgorand = await navigator.credentials.create({
+                        publicKey: makeCredentialOptions
+                    });
+                    Swal.close();
+                } catch (e) {
+                    var msg = "Could not create credentials in browser. Probably because the username is already registered with your authenticator. Please change username or authenticator."
+                    console.error(msg, e);
+                    showErrorAlert(msg, e);
+                }
+
+                try {
+                    registerNewCredential(formData, newCredentialAuth);
+                    
+
+                } catch (e) {
+                    showErrorAlert(err.message ? err.message : err);
+                }
+            });
+    });
+
+
+
+    async function registerNewCredential(formData, newCredential) {
+        // Move data into Arrays incase it is super long
+        let attestationObject = new Uint8Array(newCredential.response.attestationObject);
+        let clientDataJSON = new Uint8Array(newCredential.response.clientDataJSON);
+        let rawId = new Uint8Array(newCredential.rawId);
+
+        const data = {
+            id: newCredential.id,
+            rawId: coerceToBase64Url(rawId),
+            type: newCredential.type,
+            extensions: newCredential.getClientExtensionResults(),
+            response: {
+                attestationObject: coerceToBase64Url(attestationObject),
+                clientDataJSON: coerceToBase64Url(clientDataJSON),
+                transports: newCredential.response.getTransports()
+            }
+        };
+
+
+        try {
+            await registerCredentialWithServer(formData, data);
+        } catch (e) {
+            showErrorAlert(e);
+        }
+
+
+
+        // show success
+        Swal.fire({
+            imageUrl: "/images/securitykey.min.svg",
+            title: 'Registration Successful!',
+            text: 'You\'ve registered successfully.',
+            type: 'success',
+            timer: 2000
+        });
+
+
+    }
+
+    async function registerCredentialWithServer(formData, attestationResponse) {
+
+
+        formData.append('AttestationResponse', JSON.stringify(attestationResponse));
+
+
+        let response = await fetch('Scenario1?handler=RegisterCredential', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'Accept': 'application/json'
+
+            }
+        });
+
+        // show error
+        if (response.status !== 200) {
+            showErrorAlert("Error registering credential.");
+            return;
+        }
+
+
+        let data = await response.json();
+
+        return data;
+    }
+</script>
+
+
+<script src="~/js/helpers.js"></script>
+

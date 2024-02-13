@@ -2,7 +2,7 @@
 using AlgoStudio.Core;
 using AlgoStudio.Core.Attributes;
 
-namespace AlgorandWebauthnVariant.Models
+namespace AlgorandAuth.Models
 {
     [ABIStruct]
     public struct RawTransaction
@@ -19,5 +19,14 @@ namespace AlgorandWebauthnVariant.Models
         public RawTransaction transaction;
 
     }
+
+    [ABIStruct]
+    public struct RekeyInstruction
+    {
+        public byte[] signature;
+        public bool isEcdsa;
+        public byte[] newPublicKey;
+    }
+    
 
 }

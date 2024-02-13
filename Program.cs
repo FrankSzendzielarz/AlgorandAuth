@@ -1,6 +1,9 @@
+using Algorand;
+using Algorand.Algod;
+using Algorand.KMD;
 using Fido2NetLib;
 
-namespace AlgorandWebauthnVariant
+namespace AlgorandAuth
 {
     public class Program
     {
@@ -11,7 +14,7 @@ namespace AlgorandWebauthnVariant
             // Add services to the container.
             builder.Services.AddRazorPages();
 
-            // Using session just because the demo code I lifted from the FiDo2NetLib repository uses it.
+            
             
 
             // Use the in-memory implementation of IDistributedCache.
@@ -35,8 +38,12 @@ namespace AlgorandWebauthnVariant
                 .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                 .AddEnvironmentVariables();
 
+
+
+
             // Use the configuration
             var configuration = builder.Configuration;
+
             builder.Services.AddFido2(options =>
             {
                 options.ServerDomain = configuration["fido2:serverDomain"];

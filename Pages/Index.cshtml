@@ -7,25 +7,38 @@
 
 <h1 class="display-4">Welcome</h1>
 <p></p>
-<p> This prototype illustrates a way of using Webauthn in an authentication scenario where the identity is tied to a crypto (Algorand) account.
-<p> The particular scenario demonstrated is when a user is onboarded to a new service, such as a video game, while creating an Algorand account for them at the same time.</p>
-<p> During registration the user creates a passkey that: </p>
+<p> This site showcases different ways of using Passkeys (mainly) for authentication and authorisation scenarios, where the identities are tied to crypto (Algorand) accounts.</p>
+
+<p> The aim is to offer quick guidance to system designers, such as video game producers, online content distributors, and others, on how to work with identities and tie them to Accounts in different ways, while at the same
+    time introducing some of the concerns and pitfalls that need to be overcome.</p>
+
+<p> If you want to know how to implement authentication and authorisation in your web or native app, and at the same time get the bonus of a backend dealing with secure storage of user related information, such as
+    game items, content access passes, and so on, then this is intended to be a good place to start for you.</p>
+
+<p> The following list of use cases are showcased here. If you do not see a use case please log an issue in the github repo for a feature request.
+    The list is expected to change over time as new device, browser and Algorand features are released. All demo code is open source. Feel free to
+    copy and re-use.</p>
+</p>
+
+<p> All code uses the .NET Algorand SDK and the <a href="https://fido2-net-lib.passwordless.dev/">Fido2 SDK.</a> Eventually, the tools and components that emerge from this will be moved into the .NET SDK repo. </p>
+<h2>Passkey Scenarios</h2>
 <ul>
-    <li>Is associated with a separate signing passkey</li>
-    <li>The signing passkey can be used to sign transactions using the more widely supported schemes, as well as EdDSA</li>
-    <li>The transaction can be sent via their Algorand account, which verifies the signature and processes it for them. </li>
+    <li><a asp-area="" asp-page="/Scenario1"> Scenario: User registration creates custodial Algorand account</a></li>
+    <li><a asp-area="" asp-page="/Scenario2"> Scenario: Server releases custody of Algorand account</a></li>
+    <li><a asp-area="" asp-page="/Scenario3"> Scenario: User registration creates non-custodial Algorand account</a></li>
+    <li><a asp-area="" asp-page="/Scenario4"> Scenario: User registration involves a pre-existing account</a></li>
+    <li><a asp-area="" asp-page="/Scenario5"> Scenario: Forcing only roaming authenticators</a></li>
+    <li><a asp-area="" asp-page="/Scenario6"> Scenario: Forcing only local platform authenticators</a></li>
+    <li><a asp-area="" asp-page="/Scenario7"> Scenario: User registration on any device deterministically creates Algorand account using Chrome prf extension</a></li>
+    <li><a asp-area="" asp-page="/Scenario8"> Scenario: Restore a passkey (tied to an Algorand account) across devices</a></li>
+</ul>
+<h2>Non passkey scenarios</h2>
+<ul>
+    <li><a asp-area="" asp-page="/Scenario100"> Scenario: Use an Algorand account to sign a certificate for TLS 1.3 client authentication </a></li>
+    
 </ul>
 
-<p> The scenario is only illustrative. There are many possible use cases and concerns, such as handling MBR, account recovery, or allowing the user to take over full control.  </p>
-<p> The expectation is that in general, for tasks like handling MBR investment made by the server, then that would require contract changes, whereas for handling client account control or account recovery, then account changes such as multisigs and rekeying would be used.</p>
-
-<p> To experience the demo, please follow these steps:</p>
-<ul>
-    <li>Please use the Register tab to create a new account at the "service." For illustration, you will not be automatically signed in.</li>
-    <li>Once registered, use the Login tab to experience authentication.</li>
-    <li>Once signed in, use the Transfer Asset tab to send another "player" a "magic amulet". Good luck! </li>
-</ul>
-<p> If you are running this locally, please update the appsettings.json with your Algod node connection details. </p>
+    
 
 
 
