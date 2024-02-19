@@ -62,7 +62,7 @@ namespace AlgorandAuth.Contracts
             [InnerTransactionCall]
             void sendTransaction()
             {
-                AccountReference recipient= signedTransaction.transaction.receiver;
+                AccountReference recipient= foreignAccount1;
                 new Payment(recipient, signedTransaction.transaction.amount);
             }
 

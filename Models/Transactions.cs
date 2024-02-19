@@ -8,7 +8,7 @@ namespace AlgorandAuth.Models
     public struct RawTransaction
     {
         public ulong amount;
-        public AccountReference receiver;
+        
     }
 
     [ABIStruct]

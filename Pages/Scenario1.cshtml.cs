@@ -15,6 +15,7 @@ using AlgorandAuth.Models;
 using Algorand;
 
 
+
 // Credits: some of this code is lifted from the Demo project in the FiDo2NetLib repository. Thanks!
 
 namespace AlgorandAuth.Pages
@@ -23,6 +24,7 @@ namespace AlgorandAuth.Pages
     {
         private readonly ILogger<Scenario1Model> _logger;
         private IFido2 _fido2;
+        
         public static readonly DevelopmentInMemoryStore DemoStorage = new();
 
         [BindProperty]
@@ -67,8 +69,9 @@ namespace AlgorandAuth.Pages
                 // 3. Create options
                 var authenticatorSelection = new AuthenticatorSelection
                 {
-                    RequireResidentKey = true ,
-                    UserVerification = UserVerificationRequirement.Required
+                    
+                    RequireResidentKey = false ,
+                    UserVerification = UserVerificationRequirement.Preferred
                 };
 
                 
@@ -77,16 +80,25 @@ namespace AlgorandAuth.Pages
                 var exts = new AuthenticationExtensionsClientInputs()
                 {
                     Extensions = true,
-                    UserVerificationMethod = false,
+                    UserVerificationMethod = true,
+                    
                 };
 
                 var options = _fido2.RequestNewCredential(user, existingKeys, authenticatorSelection, AttestationConveyancePreference.None, exts);
-
+                
                 //restrict to ECDSA here (though ED25519 is also supported)
-        //        options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.ES256).ToList();
+             //   options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.ES256).ToList();
+
+
+
 
                 // 4. Temporarily store options, session/in-memory cache/redis/db
                 HttpContext.Session.SetString("fido2.attestationOptions", options.ToJson());
+
+
+
+    
+
 
                 // 5. return options to client
                 return new JsonResult(options);
@@ -100,7 +112,7 @@ namespace AlgorandAuth.Pages
             
         }
 
-        //1. Receive 2 attestation responses. One for auth and one for algorand account.
+        
         //2. Deploy the smart contract with the 2nd pubkey as an argument, and get the app id.
         //3. Set the app id 
         //3. The server can later use the app id for a signed in user to get the account to send funds/assets to.
@@ -148,8 +160,6 @@ namespace AlgorandAuth.Pages
                 await proxy.SetPubKey(acc1, 1000, algorandSigningPubkey, "", null);
 
                 var verify=await proxy.OwnerPubKey();
-
-
 
 
                 // 5. Store the credentials in db along with the algorand recipient account

@@ -14,7 +14,7 @@
         <p></p>
         <p>
             The server can easily add items or funds to the Smart Contract account, while transferring out would be a relatively infrequent operation. For example, before starting a "level",
-            (which could be any kind of analogous operation, such as before starting to watch a video with a video access token, etc) the player would first load up their character with
+            (which could be any kind of analagous operation, such as before starting to watch a video with a video access token, etc) the player would first load up their character with
             items to use by signing an instruction to the smart contract, such as "add 1000 gold coins to my character".
         </p>
         <p>
@@ -51,95 +51,117 @@
 </div>
 
 <script>
-    document.getElementById('registerForm').addEventListener('submit', function (e) {
+    document.getElementById('registerForm').addEventListener('submit', handleRegisterFormSubmit);
+
+   
+    function delay(time) {
+        return new Promise(resolve => setTimeout(resolve, time));
+    }
+
+    async function handleRegisterFormSubmit(e) {
+
         e.preventDefault();
+        
+
         let formData = new FormData(this);
 
-        fetch('Scenario1?handler=MakeCredentialOptions', {
-            method: 'POST',
-            body: formData,
-            headers: {
-                'Accept': 'application/json'
-            }
-        })
-            .then(response => response.json())
-            .then(async (makeCredentialOptions) => {
-                
-
-                if (makeCredentialOptions.status !== "ok") {
-                    console.log("Error creating credential options");
-                    console.log(makeCredentialOptions.errorMessage);
-                    showErrorAlert(makeCredentialOptions.errorMessage);
-                    return;
-                }
-
-
-
-                // Turn the challenge back into the accepted format of padded base64
-                makeCredentialOptions.challenge = coerceToArrayBuffer(makeCredentialOptions.challenge);
-                // Turn ID into a UInt8Array Buffer for some reason
-                makeCredentialOptions.user.id = coerceToArrayBuffer(makeCredentialOptions.user.id);
-
-                makeCredentialOptions.excludeCredentials = makeCredentialOptions.excludeCredentials.map((c) => {
-                    c.id = coerceToArrayBuffer(c.id);
-                    return c;
-                });
-
-                if (makeCredentialOptions.authenticatorSelection.authenticatorAttachment === null) makeCredentialOptions.authenticatorSelection.authenticatorAttachment = undefined;
-
-                console.log("Credential Options Formatted", makeCredentialOptions);
-
-            
-
-                let newCredentialAuth;
-                let newCredentialAlgorand;
-                try {
-                    Swal.fire({
-                        title: 'Registering authentication passkey...',
-                        text: 'Please follow the onscreen instructions.',
-                        imageUrl: "/images/securitykey.min.svg",
-                        
-                        showCancelButton: true,
-                        showConfirmButton: false,
-                        focusConfirm: false,
-                        focusCancel: false,
-                        width: '850px'
-                        
-                    });
-                    newCredentialAuth = await navigator.credentials.create({
-                        publicKey: makeCredentialOptions
-                    });
-                    Swal.close();
-                    Swal.fire({
-                        title: '..and your Algorand Account passkey.',
-                        text: 'Please follow the onscreen instructions.',
-                        imageUrl: "/images/securitykey.min.svg",
-                        background: 'lightblue',
-                        showCancelButton: true,
-                        showConfirmButton: false,
-                        focusConfirm: false,
-                        focusCancel: false
-                    });
-                    newCredentialAlgorand = await navigator.credentials.create({
-                        publicKey: makeCredentialOptions
-                    });
-                    Swal.close();
-                } catch (e) {
-                    debugger;
-                    var msg = "Could not create credentials in browser. Probably because the username is already registered with your authenticator. Please change username or authenticator."
-                    console.error(msg, e);
-                    showErrorAlert(msg, e);
-                }
-
-                try {
-                    registerNewCredential(formData, newCredentialAuth, newCredentialAlgorand);
-                    
-
-                } catch (e) {
-                    showErrorAlert(err.message ? err.message : err);
+        let makeCredentialOptions;
+        try {
+            let response = await fetch('Scenario1?handler=MakeCredentialOptions', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Accept': 'application/json'
                 }
             });
-    });
+            makeCredentialOptions = await response.json();
+        } catch (e) {
+            console.error(e);
+            let msg = "Something wen't really wrong";
+            showErrorAlert(msg);
+        }
+
+        if (makeCredentialOptions.status !== "ok") {
+            console.log("Error creating credential options");
+            console.log(makeCredentialOptions.errorMessage);
+            showErrorAlert(makeCredentialOptions.errorMessage);
+            return;
+        }
+
+        // Turn the challenge back into the accepted format of padded base64
+        makeCredentialOptions.challenge = coerceToArrayBuffer(makeCredentialOptions.challenge);
+        // Turn ID into a UInt8Array Buffer for some reason
+        makeCredentialOptions.user.id = coerceToArrayBuffer(makeCredentialOptions.user.id);
+
+        makeCredentialOptions.excludeCredentials = makeCredentialOptions.excludeCredentials.map((c) => {
+            c.id = coerceToArrayBuffer(c.id);
+            return c;
+        });
+
+      
+        //makeCredentialOptions.authenticatorSelection.residentKey = "discouraged";
+
+        console.log("Credential Options Formatted", makeCredentialOptions);
+
+        let newCredentialAuth;
+        let newCredentialAlgorand;
+        try {
+            Swal.fire({
+                title: 'Registering authentication passkey...',
+                text: 'Please follow the onscreen instructions.',
+                imageUrl: "/images/securitykey.min.svg",
+
+                showCancelButton: false,
+                showConfirmButton: false,
+                focusConfirm: false,
+                focusCancel: false,
+                width: '850px'
+
+            });
+
+            
+            await delay(1000);
+            newCredentialAuth = await navigator.credentials.create({
+                publicKey: makeCredentialOptions
+            });
+            
+
+            Swal.close();
+            Swal.fire({
+                title: '..and your Algorand Account passkey.',
+                text: 'Please follow the onscreen instructions.',
+                imageUrl: "/images/securitykey.min.svg",
+                background: 'lightblue',
+                showCancelButton: true,
+                showConfirmButton: false,
+                focusConfirm: false,
+                focusCancel: false
+            });
+            
+
+            await delay(1000);
+            newCredentialAlgorand = await navigator.credentials.create({
+                publicKey: makeCredentialOptions
+            });
+            
+
+            Swal.close();
+
+        } catch (e) {
+
+            var msg = "Could not create credentials in browser. Probably because the username is already registered with your authenticator. Please change username or authenticator."
+            console.error(msg, e);
+            showErrorAlert(msg, e);
+        }
+
+        try {
+            await registerNewCredential(formData, newCredentialAuth, newCredentialAlgorand);
+
+        } catch (e) {
+            showErrorAlert(e.message ? e.message : e);
+        }
+
+    };
 
 
 
