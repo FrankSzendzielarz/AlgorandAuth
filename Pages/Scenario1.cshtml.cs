@@ -13,6 +13,11 @@ using Algorand.Algod;
 using Algorand.KMD;
 using AlgorandAuth.Models;
 using Algorand;
+using static Org.BouncyCastle.Math.EC.ECCurve;
+using System.Security.Cryptography;
+using AlgoStudio.Compiler;
+using static Fido2NetLib.AuthenticatorAssertionRawResponse;
+using Newtonsoft.Json.Linq;
 
 
 
@@ -24,11 +29,12 @@ namespace AlgorandAuth.Pages
     {
         private readonly ILogger<Scenario1Model> _logger;
         private IFido2 _fido2;
-        
+        private Fido2Configuration _fido2config;
+
         public static readonly DevelopmentInMemoryStore DemoStorage = new();
 
         [BindProperty]
-        public string? DisplayName { get; set; }
+        public string? UserName { get; set; }
 
         [BindProperty]
         public string AttestationResponseAuth { get; set; }
@@ -36,29 +42,36 @@ namespace AlgorandAuth.Pages
         [BindProperty]
         public string AttestationResponseAlgorand { get; set; }
 
-        public Scenario1Model(ILogger<Scenario1Model> logger, IFido2 fido2, IConfiguration config): base(config)
+        [BindProperty]
+        public string AssertedCredential { get; set; }
+
+        public Scenario1Model(ILogger<Scenario1Model> logger, IFido2 fido2, IConfiguration config, Fido2Configuration fido2config) : base(config)
         {
             _logger = logger;
             _fido2 = fido2;
+            _fido2config = fido2config;
         }
 
         public void OnGet()
         {
         }
 
+
+       
+
         public JsonResult OnPostMakeCredentialOptions()
         {
             try
             {
 
-               
-                string username=Guid.NewGuid().ToString();  
+
+                string username = UserName;
 
 
                 // 1. Get user from DB by username (in our example, auto create missing users)
                 var user = DemoStorage.GetOrAddUser(username, () => new Fido2User
                 {
-                    DisplayName = DisplayName,
+                    DisplayName = UserName,
                     Name = username,
                     Id = Encoding.UTF8.GetBytes(username) // byte representation of userID is required
                 });
@@ -70,24 +83,24 @@ namespace AlgorandAuth.Pages
                 var authenticatorSelection = new AuthenticatorSelection
                 {
                     
-                    RequireResidentKey = false ,
+                    RequireResidentKey = true,
                     UserVerification = UserVerificationRequirement.Preferred
                 };
 
-                
+
                 //authenticatorSelection.AuthenticatorAttachment = AuthenticatorAttachment.CrossPlatform;
 
                 var exts = new AuthenticationExtensionsClientInputs()
                 {
                     Extensions = true,
                     UserVerificationMethod = true,
-                    
+
                 };
 
                 var options = _fido2.RequestNewCredential(user, existingKeys, authenticatorSelection, AttestationConveyancePreference.None, exts);
-                
+
                 //restrict to ECDSA here (though ED25519 is also supported)
-             //   options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.ES256).ToList();
+                //   options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.ES256).ToList();
 
 
 
@@ -97,7 +110,7 @@ namespace AlgorandAuth.Pages
 
 
 
-    
+
 
 
                 // 5. return options to client
@@ -109,14 +122,105 @@ namespace AlgorandAuth.Pages
             }
 
 
-            
+
         }
 
-        
-        //2. Deploy the smart contract with the 2nd pubkey as an argument, and get the app id.
-        //3. Set the app id 
-        //3. The server can later use the app id for a signed in user to get the account to send funds/assets to.
-         
+
+        private AssertionOptions GetAssertionOptions(
+           IEnumerable<PublicKeyCredentialDescriptor> allowedCredentials,
+           UserVerificationRequirement? userVerification,
+           byte[] challengeBytes,
+           AuthenticationExtensionsClientInputs? extensions = null
+           )
+           
+        {
+            challengeBytes=BitConverter.GetBytes(0xdeadbeef); //TESTING
+            var options = AssertionOptions.Create(_fido2config, challengeBytes, allowedCredentials, userVerification, extensions);
+            return options;
+        }
+
+
+        public async Task<JsonResult> OnPostExecuteTransaction(CancellationToken cancellationToken)
+        {
+            try
+            {
+                AuthenticatorAssertionRawResponse clientResponse = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(AssertedCredential);
+
+                AuthenticatorAssertionResponse parsedResponse = AuthenticatorAssertionResponse.Parse(clientResponse);
+
+                byte[] hash = SHA256.HashData(clientResponse.Response.ClientDataJson);
+                byte[] data = [.. clientResponse.Response.AuthenticatorData, .. hash];
+
+
+                return new JsonResult(new { status = "ok", errorMessage = "" });
+            }
+            catch (Exception e)
+            {
+
+                return new JsonResult(new  { status = "error", errorMessage =e.ToString() });
+            }
+        }
+        public async Task<JsonResult> OnPostSignTransaction(CancellationToken cancellationToken)
+        {
+            try
+            {
+                string username = UserName;
+
+                var existingCredentials = new List<PublicKeyCredentialDescriptor>();
+
+                if (!string.IsNullOrEmpty(UserName))
+                {
+                    
+                    //var user = DemoStorage.GetUser(username) ?? throw new ArgumentException("Username was not registered");
+
+                    //// 2. Get registered credentials from database
+                    //existingCredentials = DemoStorage.GetCredentialsByUser(user).Where(c=>c is AlgorandStoredCredential).Select(c => (c as AlgorandStoredCredential).AlgorandCredentialId).ToList();
+                }
+
+                var exts = new AuthenticationExtensionsClientInputs()
+                {
+                    Extensions = true,
+                    UserVerificationMethod = true,
+                     
+                };
+
+                // 3. Create options
+                var txnToSign = new RawSpendTransaction()
+                {
+                    amount = 1234,
+                    nonce = 10
+                };
+                var txnBytes = TealTypeUtils.ToByteArray(txnToSign);
+                
+                var uv = UserVerificationRequirement.Discouraged;
+                var options = GetAssertionOptions(
+                    existingCredentials,
+                    uv,
+                    txnBytes,
+                    exts
+                );
+
+
+                // 4. Temporarily store options, session/in-memory cache/redis/db
+                HttpContext.Session.SetString("fido2.assertionOptions", options.ToJson());
+
+                // 5. Return options to client
+                return new JsonResult(options);
+
+
+
+
+                
+            }
+            catch (Exception e)
+            {
+
+                return new JsonResult(new AssertionOptions { Status = "error", ErrorMessage = e.ToString() }); ;
+            }
+        }
+
+
+
         public async Task<JsonResult> OnPostRegisterCredential(CancellationToken cancellationToken)
         {
             try
@@ -143,7 +247,7 @@ namespace AlgorandAuth.Pages
                 // 2b. Get the algorand credential pubkey 
                 var attestationResponseAlgorand = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(AttestationResponseAlgorand);
                 var algorandCredential = await _fido2.MakeNewCredentialAsync(attestationResponseAlgorand, options, callback, cancellationToken: cancellationToken);
-                var algorandSigningPubkey = algorandCredential.Result.PublicKey;
+                var algorandSigningPubkey = algorandCredential.Result.PublicKey.Take(32).ToArray();
 
 
                 // 3. Deploy the custom contract for the new user to the Algorand network
@@ -156,10 +260,10 @@ namespace AlgorandAuth.Pages
                 Address algorandAccountAddress = Address.ForApplication(appId.Value);
 
                 // 4. Ensure this contract will authorise instructions from this user (though the contracts will be deploy time templates in future, not parameterised with storage)
-                var proxy=new Proxies.TransactionRouterContractProxy(algodClient, appId.Value);
+                var proxy = new Proxies.TransactionRouterContractProxy(algodClient, appId.Value);
                 await proxy.SetPubKey(acc1, 1000, algorandSigningPubkey, "", null);
 
-                var verify=await proxy.OwnerPubKey();
+                var verify = await proxy.OwnerPubKey();
 
 
                 // 5. Store the credentials in db along with the algorand recipient account
@@ -174,9 +278,10 @@ namespace AlgorandAuth.Pages
                     AaGuid = success.Result.Aaguid,
                     CredType = success.Result.CredType,
                     AlgorandSigningPubkey = algorandSigningPubkey,
-                    AlgorandAccountAddress= algorandAccountAddress
-                    
-                }) ;
+                    AlgorandAccountAddress = algorandAccountAddress,
+                    AlgorandCredentialId = new PublicKeyCredentialDescriptor(algorandCredential.Result.CredentialId)
+
+                });
 
                 // 4. return "ok" to the client
                 return new JsonResult(true);

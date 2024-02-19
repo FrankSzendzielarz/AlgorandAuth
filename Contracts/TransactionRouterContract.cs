@@ -25,7 +25,7 @@ namespace AlgorandAuth.Contracts
             {
                 return 1;
             }
-
+            
 
 
             InvokeSmartContractMethod();
@@ -56,7 +56,7 @@ namespace AlgorandAuth.Contracts
         /// </summary>
         /// <param name="payment"></param>
         [SmartContractMethod(OnCompleteType.NoOp,"send")]
-        public void SendTransaction(PasskeySignedTransaction signedTransaction, AccountReference foreignAccount1)
+        public void SendTransaction(PasskeySignedPayment signedTransaction, AccountReference foreignAccount1)
         {
 
             [InnerTransactionCall]
@@ -69,8 +69,17 @@ namespace AlgorandAuth.Contracts
             //Demo implementation. A full transaction would involve more fields, this is just a simplified example.
             if  (signedTransaction.isEcdsa)
             {
-                byte[] message = Sha256((byte[])(object)signedTransaction.transaction);
+                //get the part of the signed message that is the transaction and verify that it matches the transaction
+                // (an alternative implementation could just use the part of the signed message directly)
                 
+                byte[] challengeB64 = GetJsonObject(signedTransaction.clientDataJson,"challenge");
+                byte[] challenge = Base64DecodeUrlEncoded(challengeB64);
+                byte[] transaction = (byte[])(object)signedTransaction.transaction;
+                if (transaction!=challenge)
+                {
+                    Fail();
+                }
+
                 byte[] signature = signedTransaction.signature;
                 byte[] signatureR = signature.Part(0, 31);
                 byte[] signatureS= signature.Part(32, 63);
@@ -78,6 +87,12 @@ namespace AlgorandAuth.Contracts
                 byte[] ownerPubKeyBytes = OwnerPubKey;
                 byte[] ownerPubKeyX= ownerPubKeyBytes.Part(0, 31);
                 byte[] ownerPubKeyY= ownerPubKeyBytes.Part(32, 63);
+
+                //construct message:
+                byte[] hash = Sha256(signedTransaction.clientDataJson);
+                byte[] authenticatorData = signedTransaction.authenticatorData;
+                byte[] message=authenticatorData.Concat(hash);
+
                 bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS,ownerPubKeyX,ownerPubKeyY);
 
                 if ((verified)) 
@@ -107,7 +122,7 @@ namespace AlgorandAuth.Contracts
             [InnerTransactionCall]
             void changeOwner()
             {
-                byte[] newOwner = rekeySignedTransaction.newPublicKey;
+                byte[] newOwner = rekeySignedTransaction.transaction.newPublicKey;
                 byte[] self = CurrentApplicationAddress;
                 AccountReference currentAddress= (AccountReference)(object)self;
                 //This is actually a rekey transaction.
@@ -117,7 +132,13 @@ namespace AlgorandAuth.Contracts
             
             if (rekeySignedTransaction.isEcdsa)
             {
-                byte[] message = Sha256((byte[])(object)rekeySignedTransaction.newPublicKey);
+                byte[] challengeB64 = GetJsonObject(rekeySignedTransaction.clientDataJson, "challenge");
+                byte[] challenge = Base64DecodeUrlEncoded(challengeB64);
+                byte[] transaction = (byte[])(object)rekeySignedTransaction.transaction;
+                if (transaction != challenge)
+                {
+                    Fail();
+                }
 
                 byte[] signature = rekeySignedTransaction.signature;
                 byte[] signatureR = signature.Part(0, 31);
@@ -126,8 +147,13 @@ namespace AlgorandAuth.Contracts
                 byte[] ownerPubKeyBytes = OwnerPubKey;
                 byte[] ownerPubKeyX = ownerPubKeyBytes.Part(0, 31);
                 byte[] ownerPubKeyY = ownerPubKeyBytes.Part(32, 63);
-                bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS, ownerPubKeyX, ownerPubKeyY);
 
+                //construct message:
+                byte[] hash = Sha256(rekeySignedTransaction.clientDataJson);
+                byte[] authenticatorData = rekeySignedTransaction.authenticatorData;
+                byte[] message = authenticatorData.Concat(hash);
+
+                bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS, ownerPubKeyX, ownerPubKeyY);
                 if ((verified))
                 {
                     changeOwner();

@@ -1,5 +1,6 @@
 ﻿using Algorand;
 using Fido2NetLib.Development;
+using Fido2NetLib.Objects;
 
 namespace AlgorandAuth.Models
 {
@@ -7,5 +8,6 @@ namespace AlgorandAuth.Models
     {
         public byte[] AlgorandSigningPubkey { get; set; }
         public Address AlgorandAccountAddress { get; set; }
+        public PublicKeyCredentialDescriptor AlgorandCredentialId { get; internal set; }
     }
 }

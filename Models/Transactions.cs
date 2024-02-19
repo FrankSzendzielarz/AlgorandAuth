@@ -1,23 +1,38 @@
 ﻿using Algorand;
 using AlgoStudio.Core;
 using AlgoStudio.Core.Attributes;
+using Microsoft.AspNetCore.Identity;
 
 namespace AlgorandAuth.Models
 {
     [ABIStruct]
-    public struct RawTransaction
+    public struct RawSpendTransaction
     {
         public ulong amount;
+        public ulong nonce;
         
     }
 
     [ABIStruct]
-    public struct PasskeySignedTransaction
+    public struct RawRekeyTransaction
+    {
+        public byte[] newPublicKey;
+        public ulong nonce;
+        
+    }
+
+    [ABIStruct]
+    public struct PasskeySignedPayment
     {
         public byte[] signature;
         public bool isEcdsa;
-        public RawTransaction transaction;
-
+        public RawSpendTransaction transaction;
+        public byte[] clientDataJson;
+        public byte[] authenticatorData;
+        
+        
+        
+        
     }
 
     [ABIStruct]
@@ -25,8 +40,10 @@ namespace AlgorandAuth.Models
     {
         public byte[] signature;
         public bool isEcdsa;
-        public byte[] newPublicKey;
+        public RawRekeyTransaction transaction;
+        public byte[] clientDataJson;
+        public byte[] authenticatorData;
+
     }
-    
 
 }
