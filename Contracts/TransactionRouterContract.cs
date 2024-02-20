@@ -1,5 +1,6 @@
 ﻿using Algorand;
 using Algorand.Algod.Model.Transactions;
+using Algorand.Imports;
 using AlgorandAuth.Models;
 using AlgoStudio.Core;
 using AlgoStudio.Core.Attributes;
@@ -56,10 +57,18 @@ namespace AlgorandAuth.Contracts
         /// </summary>
         /// <param name="payment"></param>
         [SmartContractMethod(OnCompleteType.NoOp,"send")]
-        public void SendTransaction(PasskeySignedPayment signedTransaction, AccountReference foreignAccount1)
+        public void SendTransaction(PasskeySignedPayment signedTransaction, AccountReference foreignAccount1, OpupContractReference opup,  AppCallTransactionReference current)
         {
             //TODO - Nonce must be checked!
-
+            [InnerTransactionCall]
+            void increaseBudget()
+            {
+                //increase by 2800- ?
+                opup.Opup();
+                opup.Opup();
+                opup.Opup();
+                opup.Opup();
+            }
 
             [InnerTransactionCall]
             void sendTransaction()
@@ -69,8 +78,11 @@ namespace AlgorandAuth.Contracts
             }
 
             //Demo implementation. A full transaction would involve more fields, this is just a simplified example.
-            if  (signedTransaction.isEcdsa)
+            if  (!signedTransaction.isEcdsa)
             {
+               
+                increaseBudget();
+
                 //get the part of the signed message that is the transaction and verify that it matches the transaction
                 // (an alternative implementation could just use the part of the signed message directly)
 
@@ -83,22 +95,12 @@ namespace AlgorandAuth.Contracts
                 }
                 else
                 {
-
-
-                    byte[] signature = signedTransaction.signature;
-                    byte[] signatureR = signature.Part(0, 31);
-                    byte[] signatureS = signature.Part(32, 63);
-
-                    byte[] ownerPubKeyBytes = OwnerPubKey;
-                    byte[] ownerPubKeyX = ownerPubKeyBytes.Part(0, 31);
-                    byte[] ownerPubKeyY = ownerPubKeyBytes.Part(32, 63);
-
                     //construct message:
                     byte[] hash = Sha256(signedTransaction.clientDataJson);
                     byte[] authenticatorData = signedTransaction.authenticatorData;
                     byte[] message = authenticatorData.Concat(hash);
-
-                    bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS, ownerPubKeyX, ownerPubKeyY);
+                    
+                    bool verified = Ed25519verify(message, signedTransaction.signature, OwnerPubKey);
 
                     if ((verified))
                     {

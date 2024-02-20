@@ -4,10 +4,12 @@ using AlgorandAuth.Pages.Shared;
 using AlgoStudio.Clients;
 using AlgoStudio.Compiler;
 using Fido2NetLib;
+using Fido2NetLib.Cbor;
 using Fido2NetLib.Development;
 using Fido2NetLib.Objects;
 using Microsoft.AspNetCore.Mvc;
 using Proxies;
+using System.Formats.Cbor;
 using System.Text;
 using System.Text.Json;
 
@@ -37,6 +39,12 @@ namespace AlgorandAuth.Pages
         [BindProperty]
         public string AssertedCredential { get; set; }
 
+        [BindProperty]
+        public ulong Balance1 { get; set; }
+
+        [BindProperty]
+        public ulong Balance2 { get; set; }
+
         public Scenario1Model(ILogger<Scenario1Model> logger, IFido2 fido2, IConfiguration config, Fido2Configuration fido2config) : base(config)
         {
             _logger = logger;
@@ -44,8 +52,13 @@ namespace AlgorandAuth.Pages
             _fido2config = fido2config;
         }
 
-        public void OnGet()
+        public async Task OnGet()
         {
+            
+            var accBalance1=await algodClient.AccountInformationAsync(acc1.Address.ToString());
+            var accBalance2 = await algodClient.AccountInformationAsync(acc2.Address.ToString());
+            Balance1 = accBalance1.Amount;
+            Balance2 = accBalance2.Amount;
         }
 
         public JsonResult OnPostMakeCredentialOptions()
@@ -68,7 +81,6 @@ namespace AlgorandAuth.Pages
                 // 3. Create options
                 var authenticatorSelection = new AuthenticatorSelection
                 {
-
                     RequireResidentKey = true,
                     UserVerification = UserVerificationRequirement.Preferred
                 };
@@ -85,8 +97,8 @@ namespace AlgorandAuth.Pages
 
                 var options = _fido2.RequestNewCredential(user, existingKeys, authenticatorSelection, AttestationConveyancePreference.None, exts);
 
-                //restrict to ECDSA here (though ED25519 is also supported)
-                //   options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.ES256).ToList();
+                //restrict to ed25519
+                options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.EdDSA).ToList();
 
 
 
@@ -154,12 +166,12 @@ namespace AlgorandAuth.Pages
                     transaction = txnToSign,
                     authenticatorData = clientResponse.Response.AuthenticatorData,
                     clientDataJson = clientResponse.Response.ClientDataJson,
-                    isEcdsa = true,
+                    isEcdsa = false,
                     signature = clientResponse.Response.Signature
                 };
 
                 TransactionRouterContractProxy proxy = new TransactionRouterContractProxy(algodClient, appCred.AlgorandAccountId);
-                await proxy.SendTransaction(acc1, 2000, acc2.Address, payment, "", null);
+                await proxy.SendTransaction(acc1, 6000, OpupAppId,acc2.Address, payment, "", null);
 
 
 
@@ -258,8 +270,14 @@ namespace AlgorandAuth.Pages
                 // 2b. Get the algorand credential pubkey 
                 var attestationResponseAlgorand = JsonSerializer.Deserialize<AuthenticatorAttestationRawResponse>(AttestationResponseAlgorand);
                 var algorandCredential = await _fido2.MakeNewCredentialAsync(attestationResponseAlgorand, options, callback, cancellationToken: cancellationToken);
-                var algorandSigningPubkey = algorandCredential.Result.PublicKey.Take(64).ToArray();
+                
 
+                // Assuming -8 (eddsa) but the idea is we add more to this, including ECDSA (better opcode support)
+                var _cpk = ((CborMap)CborObject.Decode(algorandCredential.Result.PublicKey));
+                var algorandSigningPubkey = (byte[])(_cpk.ToList()[3].Value);  //COSE.KeyTypeParameter.X
+
+                
+                
 
                 // 3. Deploy the custom contract for the new user to the Algorand network
                 var userAccountContract = new TransactionRouterContract.TransactionRouterContract();

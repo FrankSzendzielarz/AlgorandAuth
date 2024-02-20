@@ -46,31 +46,17 @@ namespace Proxies
         /// such as by rekeying.
         /// </summary>
         /// <param name="payment"></param>
-		public async Task SendTransaction (Account sender, ulong? fee, Address foreignAccount1,AlgorandAuth.Models.PasskeySignedPayment signedTransaction,string note, List<BoxRef> boxes)
+		public async Task SendTransaction (Account sender, ulong? fee, ulong opup,Address foreignAccount1,AlgorandAuth.Models.PasskeySignedPayment signedTransaction,string note, List<BoxRef> boxes)
 		{
 			var abiHandle = Encoding.UTF8.GetBytes("send");
-			var result = await base.CallApp(null, fee, AlgoStudio.Core.OnCompleteType.NoOp, 1000, note, sender,  new List<object> {abiHandle,signedTransaction}, null, null,new List<Address> {foreignAccount1},boxes);
+			var result = await base.CallApp(null, fee, AlgoStudio.Core.OnCompleteType.NoOp, 1000, note, sender,  new List<object> {abiHandle,signedTransaction}, new List<ulong> {opup}, null,new List<Address> {foreignAccount1},boxes);
 
 		}
 
-		public async Task<List<Transaction>> SendTransaction_Transactions (Account sender, ulong? fee, Address foreignAccount1,AlgorandAuth.Models.PasskeySignedPayment signedTransaction,string note, List<BoxRef> boxes)
+		public async Task<List<Transaction>> SendTransaction_Transactions (Account sender, ulong? fee, ulong opup,Address foreignAccount1,AlgorandAuth.Models.PasskeySignedPayment signedTransaction,string note, List<BoxRef> boxes)
 		{
 			var abiHandle = Encoding.UTF8.GetBytes("send");
-			return await base.MakeTransactionList(null, fee, AlgoStudio.Core.OnCompleteType.NoOp, 1000, note, sender,  new List<object> {abiHandle,signedTransaction}, null, null,new List<Address> {foreignAccount1},boxes);
-
-		}
-
-		public async Task ChangeOwner (Account sender, ulong? fee, Address foreignAccount1,AlgorandAuth.Models.RekeyInstruction rekeySignedTransaction,string note, List<BoxRef> boxes)
-		{
-			var abiHandle = Encoding.UTF8.GetBytes("changeowner");
-			var result = await base.CallApp(null, fee, AlgoStudio.Core.OnCompleteType.NoOp, 1000, note, sender,  new List<object> {abiHandle,rekeySignedTransaction}, null, null,new List<Address> {foreignAccount1},boxes);
-
-		}
-
-		public async Task<List<Transaction>> ChangeOwner_Transactions (Account sender, ulong? fee, Address foreignAccount1,AlgorandAuth.Models.RekeyInstruction rekeySignedTransaction,string note, List<BoxRef> boxes)
-		{
-			var abiHandle = Encoding.UTF8.GetBytes("changeowner");
-			return await base.MakeTransactionList(null, fee, AlgoStudio.Core.OnCompleteType.NoOp, 1000, note, sender,  new List<object> {abiHandle,rekeySignedTransaction}, null, null,new List<Address> {foreignAccount1},boxes);
+			return await base.MakeTransactionList(null, fee, AlgoStudio.Core.OnCompleteType.NoOp, 1000, note, sender,  new List<object> {abiHandle,signedTransaction}, new List<ulong> {opup}, null,new List<Address> {foreignAccount1},boxes);
 
 		}
 

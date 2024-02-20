@@ -22,7 +22,10 @@
             Further, marketplace operations such as swaps and re-sales could be programmed to incur game server royalty charges.
         </p>
     </div>
-
+    
+    <p>Account Balances:</p>
+    <p>Account1 : @Model.Balance1</p>
+    <p>Account2 : @Model.Balance2</p>
 
     <h3 class="title is-3">Register user</h3>
     <p>Registering a new user will create two passkeys. One for <b>authentication to the server</b> and one for <b>signing transactions</b>.</p>
@@ -35,6 +38,7 @@
     <p>Along with the passkeys, a new account will be created and deployed on the Algorand network. This account is governed by a smart contract.</p>
     <p>The source code for the smart contract is available, in the github repo. It is implemented for demo purposes to allow only a funds payment out.</p>
     <form id="registerForm">
+        
         <input type="hidden" id="RequestVerificationToken" name="__RequestVerificationToken" />
         @Html.AntiForgeryToken()
         <div class="input-group mb-3">
@@ -55,14 +59,15 @@
         shown in later scenarios.
     </p>
 
+    <h3 class="title is-3">Authorise transaction.</h3>
     <form id="signTransactionForm" method="post" >
         <input type="hidden" id="RequestVerificationToken" name="__RequestVerificationToken" />
         @Html.AntiForgeryToken()
         
-        <div class="input-group mb-3">
+        @* <div class="input-group mb-3">
             <input asp-for="UserName" class="form-control" placeholder="Username" aria-label="Username">
 
-        </div>
+        </div> *@
         
         <button type="submit" class="button btn-secondary">Issue payment to account 2.</button>
     </form>
@@ -118,7 +123,7 @@
         });
 
         console.log("Assertion Options Object", makeAssertionOptions);
-
+        debugger;
         // ask browser for credentials (browser will ask connected authenticators)
         let credential;
         try {
@@ -191,16 +196,21 @@
             timer: 2000
         });
 
-        // redirect to dashboard to show keys
-        window.location.href = "/dashboard/" + value("#login-username");
+    
     }
 
 
-
+    
     async function handleRegisterFormSubmit(e) {
 
         e.preventDefault();
         
+
+      
+
+
+
+
 
         let formData = new FormData(this);
 
@@ -214,6 +224,7 @@
                 }
             });
             makeCredentialOptions = await response.json();
+            
         } catch (e) {
             console.error(e);
             let msg = "Something wen't really wrong";
@@ -284,7 +295,7 @@
             let algorandBytes = encoder.encode("Algorand");
             makeCredentialOptions.user.name="Algorand";
             makeCredentialOptions.user.id=coerceToArrayBuffer(algorandBytes);
-
+            debugger;
             newCredentialAlgorand = await navigator.credentials.create({
                 publicKey: makeCredentialOptions
             });

@@ -14,7 +14,7 @@
 	</ItemGroup>	
 	<ItemGroup>
 		<PackageReference Include="Algorand2" Version="2.0.0.2024011309" />
-		<PackageReference Include="AlgoStudio" Version="1.2.3" PrivateAssets="All" ReferenceOutputAssembly="true" OutputItemType="analyzer" />
+		<PackageReference Include="AlgoStudio" Version="1.2.4" PrivateAssets="All" ReferenceOutputAssembly="true" OutputItemType="analyzer" />
 		<PackageReference Include="Fido2" Version="3.0.1" />
 		<PackageReference Include="Fido2.AspNet" Version="3.0.1" />
 		<PackageReference Include="Fido2.Models" Version="3.0.1" />

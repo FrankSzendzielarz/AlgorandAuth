@@ -2,6 +2,7 @@
 using Algorand.Algod;
 using Algorand.Algod.Model;
 using Algorand.KMD;
+using AlgoStudio.Clients;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
@@ -9,6 +10,8 @@ namespace AlgorandAuth.Pages.Shared
 {
     public class AlgorandBaseModel : PageModel
     {
+        public static ulong OpupAppId = 0;
+
         protected DefaultApi algodClient { get; }
         protected Api kmdClient { get; }
 
@@ -20,6 +23,7 @@ namespace AlgorandAuth.Pages.Shared
         public AlgorandBaseModel( IConfiguration configuration)
         {
 
+
             var algoHttpClient = HttpClientConfigurator.ConfigureHttpClient(configuration["AlgorandConnection:AlgodApiUrl"], configuration["AlgorandConnection:AlgodApiToken"]);
             algodClient = new DefaultApi(algoHttpClient);
 
@@ -30,6 +34,15 @@ namespace AlgorandAuth.Pages.Shared
             kmdClient.BaseUrl = configuration["AlgorandConnection:AlgodKmdApiUrl"];
 
             Task.Run(SetUpAccounts).Wait();
+
+            // This should really be done once and added to a configuration setting. This code is for demo purposes.
+            if (OpupAppId == 0)
+            {
+                var opup = new OpupContract.OpupContract();
+                var appId=opup.Deploy(acc1, algodClient).Result;
+                if (appId == null) throw new Exception("Failed to deploy Opup contract.");
+                OpupAppId = appId.Value;
+            }
         }
 
         private async Task SetUpAccounts()
