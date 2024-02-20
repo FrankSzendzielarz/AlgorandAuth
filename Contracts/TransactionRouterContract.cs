@@ -58,6 +58,8 @@ namespace AlgorandAuth.Contracts
         [SmartContractMethod(OnCompleteType.NoOp,"send")]
         public void SendTransaction(PasskeySignedPayment signedTransaction, AccountReference foreignAccount1)
         {
+            //TODO - Nonce must be checked!
+
 
             [InnerTransactionCall]
             void sendTransaction()
@@ -71,37 +73,41 @@ namespace AlgorandAuth.Contracts
             {
                 //get the part of the signed message that is the transaction and verify that it matches the transaction
                 // (an alternative implementation could just use the part of the signed message directly)
-                
-                byte[] challengeB64 = GetJsonObject(signedTransaction.clientDataJson,"challenge");
-                byte[] challenge = Base64DecodeUrlEncoded(challengeB64);
+
+                string challengeB64 = GetJsonString(signedTransaction.clientDataJson, "challenge");
+                byte[] challenge = Base64DecodeUrlEncoded(challengeB64.ToByteArray());
                 byte[] transaction = (byte[])(object)signedTransaction.transaction;
-                if (transaction!=challenge)
+                if (transaction != challenge)
                 {
                     Fail();
-                }
-
-                byte[] signature = signedTransaction.signature;
-                byte[] signatureR = signature.Part(0, 31);
-                byte[] signatureS= signature.Part(32, 63);
-
-                byte[] ownerPubKeyBytes = OwnerPubKey;
-                byte[] ownerPubKeyX= ownerPubKeyBytes.Part(0, 31);
-                byte[] ownerPubKeyY= ownerPubKeyBytes.Part(32, 63);
-
-                //construct message:
-                byte[] hash = Sha256(signedTransaction.clientDataJson);
-                byte[] authenticatorData = signedTransaction.authenticatorData;
-                byte[] message=authenticatorData.Concat(hash);
-
-                bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS,ownerPubKeyX,ownerPubKeyY);
-
-                if ((verified)) 
-                {
-                    sendTransaction();
                 }
                 else
                 {
-                    Fail();
+
+
+                    byte[] signature = signedTransaction.signature;
+                    byte[] signatureR = signature.Part(0, 31);
+                    byte[] signatureS = signature.Part(32, 63);
+
+                    byte[] ownerPubKeyBytes = OwnerPubKey;
+                    byte[] ownerPubKeyX = ownerPubKeyBytes.Part(0, 31);
+                    byte[] ownerPubKeyY = ownerPubKeyBytes.Part(32, 63);
+
+                    //construct message:
+                    byte[] hash = Sha256(signedTransaction.clientDataJson);
+                    byte[] authenticatorData = signedTransaction.authenticatorData;
+                    byte[] message = authenticatorData.Concat(hash);
+
+                    bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS, ownerPubKeyX, ownerPubKeyY);
+
+                    if ((verified))
+                    {
+                        sendTransaction();
+                    }
+                    else
+                    {
+                        Fail();
+                    }
                 }
 
             }else
@@ -110,66 +116,69 @@ namespace AlgorandAuth.Contracts
             }
         }
 
-        [SmartContractMethod(OnCompleteType.NoOp, "changeowner")]
-        public void ChangeOwner(RekeyInstruction rekeySignedTransaction, AccountReference foreignAccount1)
-        {
-            // This example method requires user input to change the owner of the account.
-            // For some of the example scenarios, where the user is onboarded via the server, and user interaction is needed anyway to change the owner, 
-            // then this may be an acceptable approach.
-            // If not then the server may want to take an alternative route, such as maintaining a master account and using that instead.
-            //Demo implementation. A full transaction would involve more fields, this is just a simplified example.
+        //[SmartContractMethod(OnCompleteType.NoOp, "changeowner")]
+        //public void ChangeOwner(RekeyInstruction rekeySignedTransaction, AccountReference foreignAccount1)
+        //{
 
-            [InnerTransactionCall]
-            void changeOwner()
-            {
-                byte[] newOwner = rekeySignedTransaction.transaction.newPublicKey;
-                byte[] self = CurrentApplicationAddress;
-                AccountReference currentAddress= (AccountReference)(object)self;
-                //This is actually a rekey transaction.
-                new Payment(currentAddress, 0,null,null,null,null,null,null,null,null,newOwner);
-            }
+        //    //TODO - Nonce must be checked!
+
+        //    // This example method requires user input to change the owner of the account.
+        //    // For some of the example scenarios, where the user is onboarded via the server, and user interaction is needed anyway to change the owner, 
+        //    // then this may be an acceptable approach.
+        //    // If not then the server may want to take an alternative route, such as maintaining a master account and using that instead.
+            
+
+        //    [InnerTransactionCall]
+        //    void changeOwner()
+        //    {
+        //        byte[] newOwner = rekeySignedTransaction.transaction.newPublicKey;
+        //        byte[] self = CurrentApplicationAddress;
+        //        AccountReference currentAddress= (AccountReference)(object)self;
+        //        //This is actually a rekey transaction.
+        //        new Payment(currentAddress, 0,null,null,null,null,null,null,null,null,newOwner);
+        //    }
             
             
-            if (rekeySignedTransaction.isEcdsa)
-            {
-                byte[] challengeB64 = GetJsonObject(rekeySignedTransaction.clientDataJson, "challenge");
-                byte[] challenge = Base64DecodeUrlEncoded(challengeB64);
-                byte[] transaction = (byte[])(object)rekeySignedTransaction.transaction;
-                if (transaction != challenge)
-                {
-                    Fail();
-                }
+        //    if (rekeySignedTransaction.isEcdsa)
+        //    {
+        //        string challengeB64 = GetJsonString(rekeySignedTransaction.clientDataJson, "challenge");
+        //        byte[] challenge = Base64DecodeUrlEncoded(challengeB64.ToByteArray());
+        //        byte[] transaction = (byte[])(object)rekeySignedTransaction.transaction;
+        //        if (transaction != challenge)
+        //        {
+        //            Fail();
+        //        }
 
-                byte[] signature = rekeySignedTransaction.signature;
-                byte[] signatureR = signature.Part(0, 31);
-                byte[] signatureS = signature.Part(32, 63);
+        //        byte[] signature = rekeySignedTransaction.signature;
+        //        byte[] signatureR = signature.Part(0, 31);
+        //        byte[] signatureS = signature.Part(32, 63);
 
-                byte[] ownerPubKeyBytes = OwnerPubKey;
-                byte[] ownerPubKeyX = ownerPubKeyBytes.Part(0, 31);
-                byte[] ownerPubKeyY = ownerPubKeyBytes.Part(32, 63);
+        //        byte[] ownerPubKeyBytes = OwnerPubKey;
+        //        byte[] ownerPubKeyX = ownerPubKeyBytes.Part(0, 31);
+        //        byte[] ownerPubKeyY = ownerPubKeyBytes.Part(32, 63);
 
-                //construct message:
-                byte[] hash = Sha256(rekeySignedTransaction.clientDataJson);
-                byte[] authenticatorData = rekeySignedTransaction.authenticatorData;
-                byte[] message = authenticatorData.Concat(hash);
+        //        //construct message:
+        //        byte[] hash = Sha256(rekeySignedTransaction.clientDataJson);
+        //        byte[] authenticatorData = rekeySignedTransaction.authenticatorData;
+        //        byte[] message = authenticatorData.Concat(hash);
 
-                bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS, ownerPubKeyX, ownerPubKeyY);
-                if ((verified))
-                {
-                    changeOwner();
-                }
-                else
-                {
-                    Fail();
-                }
+        //        bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS, ownerPubKeyX, ownerPubKeyY);
+        //        if ((verified))
+        //        {
+        //            changeOwner();
+        //        }
+        //        else
+        //        {
+        //            Fail();
+        //        }
 
-            }
-            else
-            {
-                // Do ed25519 verification
-            }
+        //    }
+        //    else
+        //    {
+        //        // Do ed25519 verification
+        //    }
 
-        }
+        //}
     }
 
     

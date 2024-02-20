@@ -99,7 +99,7 @@
             showErrorAlert(msg);
         }
      
-        debugger;
+        
         // show options error to user
         if (makeAssertionOptions.status !== "ok") {
             console.log("Error creating assertion options");
@@ -130,7 +130,7 @@
         try {
             await processTransaction(formData,credential);
         } catch (e) {
-            showErrorAlert("Could not verify assertion", e);
+            showErrorAlert("Transaction processing failed.", e);
         }
     }
 

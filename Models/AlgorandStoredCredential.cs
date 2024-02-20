@@ -9,5 +9,6 @@ namespace AlgorandAuth.Models
         public byte[] AlgorandSigningPubkey { get; set; }
         public Address AlgorandAccountAddress { get; set; }
         public PublicKeyCredentialDescriptor AlgorandCredentialId { get; internal set; }
+        public ulong AlgorandAccountId { get; internal set; }
     }
 }
