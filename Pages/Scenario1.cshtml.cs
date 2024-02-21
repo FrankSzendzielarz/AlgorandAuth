@@ -368,7 +368,7 @@ namespace AlgorandAuth.Pages
                 
                 
                 //FUND THE CONTRACT WITH STUFF AS IT IS CUSTODIAL
-                await acc1.FundContract(appId.Value, 100000, algodClient);
+                await acc1.FundContract(appId.Value, 300000, algodClient);
                     
                 // Convert to address    
                 Address algorandAccountAddress = Address.ForApplication(appId.Value);
