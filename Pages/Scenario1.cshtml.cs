@@ -1,4 +1,5 @@
 ﻿using Algorand;
+using Algorand.Algod.Model;
 using AlgorandAuth.Models;
 using AlgorandAuth.Pages.Shared;
 using AlgoStudio.Clients;
@@ -8,6 +9,8 @@ using Fido2NetLib.Cbor;
 using Fido2NetLib.Development;
 using Fido2NetLib.Objects;
 using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Asn1;
+using Org.BouncyCastle.Crypto.Operators;
 using Proxies;
 using System.Formats.Cbor;
 using System.Text;
@@ -52,10 +55,81 @@ namespace AlgorandAuth.Pages
             _fido2config = fido2config;
         }
 
+        private byte[] decodeECDSASig(byte[] asn1sig)
+        {
+            // Assuming 'signature' is your byte array containing the DER-encoded signature
+            Asn1InputStream asnInputStream = new Asn1InputStream(asn1sig);
+            DerSequence seq = (DerSequence)asnInputStream.ReadObject();
+
+            Org.BouncyCastle.Math.BigInteger r = ((DerInteger)seq[0]).Value;
+            Org.BouncyCastle.Math.BigInteger s = ((DerInteger)seq[1]).Value;
+
+            // Convert BigIntegers to byte arrays
+            byte[] rBytes = r.ToByteArrayUnsigned().ToArray();//.Reverse().ToArray();
+            byte[] sBytes = s.ToByteArrayUnsigned().ToArray();//.Reverse().ToArray();
+
+            // Ensure each part is 32 bytes long (pad with zeros if necessary)
+            rBytes = rBytes.Length == 32 ? rBytes : Enumerable.Repeat((byte)0, 32 - rBytes.Length).Concat(rBytes).ToArray();
+            sBytes = sBytes.Length == 32 ? sBytes : Enumerable.Repeat((byte)0, 32 - sBytes.Length).Concat(sBytes).ToArray();
+
+            // Concatenate r and s to get a 64-byte array
+            byte[] rsBytes = rBytes.Concat(sBytes).ToArray();
+
+            return rsBytes;
+        }
+
         public async Task OnGet()
         {
-            
-            var accBalance1=await algodClient.AccountInformationAsync(acc1.Address.ToString());
+            ///*****
+            ///TESTING
+//            try
+//            {
+
+
+
+//                string clientCredential = "{\"id\":\"LA2p5JYRacTllJR1bnOlzA\",\"rawId\":\"LA2p5JYRacTllJR1bnOlzA\",\"type\":\"public-key\",\"extensions\":{},\"response\":{\"authenticatorData\":\"3faQTRIgBe1surrr7cmUj05lLQ-BuYK-zgqe3huy7KUdAAAAAA\",\"clientDataJSON\":\"eyJ0eXBlIjoid2ViYXV0aG4uZ2V0IiwiY2hhbGxlbmdlIjoiQUFBQUFBQUFCTklBQUFBQUFBQUFDZyIsIm9yaWdpbiI6Imh0dHBzOlwvXC9hbGdvcmFuZGF1dGguYXp1cmV3ZWJzaXRlcy5uZXQiLCJhbmRyb2lkUGFja2FnZU5hbWUiOiJjb20uYW5kcm9pZC5jaHJvbWUifQ\",\"signature\":\"MEUCIQD2Q_EFHTLnjIyFGi9ND2Fv5qF2vOsja46v_uYt4yGpxgIgS2d0yGVsSIDyb2lN4CIRh70c_1ensaK_hP-BE7zuu1Y\"}}"
+//;
+//                ulong appid = 1036;
+//                AuthenticatorAssertionRawResponse clientResponse = JsonSerializer.Deserialize<AuthenticatorAssertionRawResponse>(clientCredential);
+//                AuthenticatorAssertionResponse parsedResponse = AuthenticatorAssertionResponse.Parse(clientResponse);
+//                //dummy txn , same as what was signed.
+//                var txnToSign = new RawSpendTransaction()
+//                {
+//                    amount = 1234,
+//                    nonce = 10
+//                };
+
+//                var payment = new PasskeySignedPayment()
+//                {
+//                    transaction = txnToSign,
+//                    authenticatorData = clientResponse.Response.AuthenticatorData,
+//                    clientDataJson = clientResponse.Response.ClientDataJson,
+//                    isEcdsa = true,
+//                    signature = decodeECDSASig(clientResponse.Response.Signature)
+//                    //signature = clientResponse.Response.Signature
+//                };
+
+
+
+
+//                TransactionRouterContractProxy proxy = new TransactionRouterContractProxy(algodClient, appid);
+//                var verify = await proxy.OwnerPubKey();
+//                await proxy.SendTransaction(acc1, 6000, OpupAppId, acc2.Address, payment, "", null);
+//            }
+//            catch (ApiException<ErrorResponse> apiException)
+//            {
+//                var e1 = new JsonResult(new { status = "error", errorMessage = apiException.Message });
+//            }
+//            catch (Exception e)
+//            {
+
+//                var e2 = new JsonResult(new { status = "error", errorMessage = e.ToString() });
+//            }
+            ///END TESTING
+            ///*****
+
+
+            var accBalance1 =await algodClient.AccountInformationAsync(acc1.Address.ToString());
             var accBalance2 = await algodClient.AccountInformationAsync(acc2.Address.ToString());
             Balance1 = accBalance1.Amount;
             Balance2 = accBalance2.Amount;
@@ -97,8 +171,8 @@ namespace AlgorandAuth.Pages
 
                 var options = _fido2.RequestNewCredential(user, existingKeys, authenticatorSelection, AttestationConveyancePreference.None, exts);
 
-                //restrict to ed25519
-                options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.EdDSA).ToList();
+                //restrict to ecdsa
+                options.PubKeyCredParams = options.PubKeyCredParams.Where(p => p.Alg == COSE.Algorithm.ES256).ToList();
 
 
 
@@ -166,16 +240,21 @@ namespace AlgorandAuth.Pages
                     transaction = txnToSign,
                     authenticatorData = clientResponse.Response.AuthenticatorData,
                     clientDataJson = clientResponse.Response.ClientDataJson,
-                    isEcdsa = false,
-                    signature = clientResponse.Response.Signature
+                    isEcdsa = true,
+                    signature = decodeECDSASig(clientResponse.Response.Signature) // clientResponse.Response.Signature
                 };
 
                 TransactionRouterContractProxy proxy = new TransactionRouterContractProxy(algodClient, appCred.AlgorandAccountId);
+                
                 await proxy.SendTransaction(acc1, 6000, OpupAppId,acc2.Address, payment, "", null);
 
 
 
                 return new JsonResult(new { status = "ok", errorMessage = "" });
+            }
+            catch (ApiException<ErrorResponse> apiException)
+            {
+                return new JsonResult(new { status = "error", errorMessage = apiException.Message });
             }
             catch (Exception e)
             {
@@ -272,12 +351,12 @@ namespace AlgorandAuth.Pages
                 var algorandCredential = await _fido2.MakeNewCredentialAsync(attestationResponseAlgorand, options, callback, cancellationToken: cancellationToken);
                 
 
-                // Assuming -8 (eddsa) but the idea is we add more to this, including ECDSA (better opcode support)
+                // Assuming -7 (ecdsa/sha256 secp256r1) but the idea is we add more to this, including ECDSA (better opcode support)
                 var _cpk = ((CborMap)CborObject.Decode(algorandCredential.Result.PublicKey));
-                var algorandSigningPubkey = (byte[])(_cpk.ToList()[3].Value);  //COSE.KeyTypeParameter.X
-
-                
-                
+                var x = (byte[])(_cpk.ToList()[3].Value);  //COSE.KeyTypeParameter.X
+                var y = (byte[])(_cpk.ToList()[4].Value);  //COSE.KeyTypeParameter.Y
+                var algorandSigningPubkey = x.Concat(y).ToArray();
+                    
 
                 // 3. Deploy the custom contract for the new user to the Algorand network
                 var userAccountContract = new TransactionRouterContract.TransactionRouterContract();
@@ -286,12 +365,19 @@ namespace AlgorandAuth.Pages
                 {
                     return new JsonResult(new CredentialCreateOptions { Status = "error", ErrorMessage = "Failed to make credential options." });
                 }
+                
+                
+                //FUND THE CONTRACT WITH STUFF AS IT IS CUSTODIAL
+                await acc1.FundContract(appId.Value, 100000, algodClient);
+                    
+                // Convert to address    
                 Address algorandAccountAddress = Address.ForApplication(appId.Value);
 
                 // 4. Ensure this contract will authorise instructions from this user (though the contracts will be deploy time templates in future, not parameterised with storage)
                 var proxy = new Proxies.TransactionRouterContractProxy(algodClient, appId.Value);
                 await proxy.SetPubKey(acc1, 1000, algorandSigningPubkey, "", null);
 
+                //debug
                 var verify = await proxy.OwnerPubKey();
 
 

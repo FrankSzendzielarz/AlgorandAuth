@@ -78,7 +78,7 @@ namespace AlgorandAuth.Contracts
             }
 
             //Demo implementation. A full transaction would involve more fields, this is just a simplified example.
-            if  (!signedTransaction.isEcdsa)
+            if  (signedTransaction.isEcdsa)
             {
                
                 increaseBudget();
@@ -95,12 +95,23 @@ namespace AlgorandAuth.Contracts
                 }
                 else
                 {
+                 
+
+                    byte[] signature = signedTransaction.signature;
+                    byte[] signatureR = signature.Part(0, 32);
+                    byte[] signatureS = signature.Part(32, 64);
+
+                    byte[] ownerPubKeyBytes = OwnerPubKey;
+                    byte[] ownerPubKeyX = ownerPubKeyBytes.Part(0, 32);
+                    byte[] ownerPubKeyY = ownerPubKeyBytes.Part(32, 64);
+
                     //construct message:
                     byte[] hash = Sha256(signedTransaction.clientDataJson);
                     byte[] authenticatorData = signedTransaction.authenticatorData;
                     byte[] message = authenticatorData.Concat(hash);
-                    
-                    bool verified = Ed25519verify(message, signedTransaction.signature, OwnerPubKey);
+                    message= Sha256(message);
+
+                    bool verified = Ecdsa_verify_secp256r1(message, signatureR, signatureS, ownerPubKeyX, ownerPubKeyY);
 
                     if ((verified))
                     {
